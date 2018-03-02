@@ -3,11 +3,14 @@ import scipy.sparse
 import os
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.stats import pearsonr
+
+#download from Google Ngram Corpus
 #for i in range(200)[100:]:
 #	os.system("wget \'http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-1M-3gram-20090715-\'" + str(i) + ".csv.zip")
 for i in range(200)[200:]:
 	os.system("wget \'http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-1M-2gram-20090715-\'" + str(i) + ".csv.zip")
 
+#list of target words from http://www.kilgarriff.co.uk/BNClists/lemma.al
 f = open('lemma.al', 'r')
 lines2 = f.readlines()
 f.close()
@@ -19,6 +22,8 @@ for l in lines2:
 		targets[ls[2]] = i
 		i += 1
 
+
+#list of context words from http://www-personal.umich.edu/~jlawler/wordlist
 f = open('wordlist', 'r')
 lines3 = f.readlines()
 f.close()
@@ -30,6 +35,7 @@ for l in lines3:
 		contexts[ls[0]] = i
 		i += 1
 
+#build matrix M_list to contain trigram co-occurrences as described in report
 M_list = []
 for i in range(20):
 	M_list.append(scipy.sparse.lil_matrix((len(targets), len(contexts))))
@@ -45,12 +51,14 @@ for i in range(200):
 		if ls[0] in targets and ls[2] in contexts and ls[3] >= '1800' and ls[2] < '2000':
 			M_list[(int(ls[3]) - 1800) / 10][targets[ls[0]], contexts[ls[2]]] += int(ls[4])
 
+#save/load sparse vectors for later, comment out when needed
 for i in range(20):
 	scipy.sparse.save_npz('M' + str(i) + '.npz', M_list[i].tocsr())
 
 #for i in range(20):
 #	M_list.append(scipy.sparse.load_npz('M' + str(i) + '.npz').tolil())
 
+#MMM is list of cosine distances between target words' vector at 1800-1810 and vector at 1990-2000
 rows0 = M_list[0].sum(axis=1)
 rows19 = M_list[19].sum(axis=1)
 MMM = []
@@ -62,15 +70,16 @@ for i in range(len(targets)):
 
 MMM.sort()
 
-sum = M_list[0].sum()
-rows = M_list[0].sum(axis=1)
-cols = M_list[0].sum(axis=0)
-M10plus = scipy.sparse.lil_matrix((len(targets), len(contexts)))
-for i in range(len(targets)):
-	for j in range(len(targets) * 4):
-		if i % 100 == 0 and j == 0:
-			print i
-		M10plus[i, j] = max((M_list[0][i, j] / sum) / ((rows[i, 0] / sum) * (cols[0, j] / sum) + 1e-31), 0)
+#use this if want to use PPMIs
+#sum = M_list[0].sum()
+#rows = M_list[0].sum(axis=1)
+#cols = M_list[0].sum(axis=0)
+#M10plus = scipy.sparse.lil_matrix((len(targets), len(contexts)))
+#for i in range(len(targets)):
+#	for j in range(len(targets) * 4):
+#		if i % 100 == 0 and j == 0:
+#			print i
+#		M10plus[i, j] = max((M_list[0][i, j] / sum) / ((rows[i, 0] / sum) * (cols[0, j] / sum) + 1e-31), 0)
 
 print "Most changing words:"
 j = 0
@@ -102,6 +111,7 @@ for i in range(len(targets)):
 					break
 
 
+#model's measure of rate of change
 list1 = [0.001873677,
 0.004029538,
 0.004522792,
@@ -163,6 +173,7 @@ list1 = [0.001873677,
 0.999101713,
 0.999080733]
 
+#number of new definitions acquired based on http://historicalthesaurus.arts.gla.ac.uk/
 list2 = [3,
 3,
 1,
@@ -224,5 +235,6 @@ list2 = [3,
 4,
 0]
 
+#should be inversely correlated
 print "Pearson correlation between number of definitions gained and model's metric of change:"
 print pearsonr(list1, list2)
